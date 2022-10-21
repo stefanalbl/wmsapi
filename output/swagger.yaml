@@ -201,9 +201,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/StorageItemList'
         "404":
-          description: A storsage item with the specified ID was not found.
+          description: 404 - The specified resource was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     put:
       tags:
       - Storage Items
@@ -224,9 +233,18 @@ paths:
         "200":
           description: Success - item was updated
         "404":
-          description: Storage not known. Use add new storage item instead.
+          description: 404 - The specified resource was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
       - Storage Items
@@ -316,11 +334,27 @@ paths:
           type: string
       responses:
         "200":
-          $ref: /components/responses/StorageItem
+          description: StorageItem that was queried
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageItem'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/StorageItem'
         "404":
-          description: A storage item with the specified ID was not found.
+          description: 404 - The specified resource was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       tags:
       - Storage Items
@@ -341,10 +375,19 @@ paths:
       responses:
         "204":
           description: Successfully fulfilled - item was deleted
-        "405":
-          description: "Not allowed tol delete item, which is already stored."
+        "404":
+          description: 404 - The specified resource was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /hus:
     get:
       tags:
@@ -385,9 +428,18 @@ paths:
               schema:
                 type: string
         "404":
-          description: A storsage item with the specified ID was not found.
+          description: 404 - The specified resource was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     put:
       tags:
       - Handling Units
@@ -408,9 +460,18 @@ paths:
         "200":
           description: Success - HU was updated
         "404":
-          description: Storage not known. Use add new HU instead.
+          description: 404 - The specified resource was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
       - Handling Units
@@ -479,11 +540,20 @@ paths:
             application/xml:
               schema:
                 $ref: '#/components/schemas/StorageItem'
-        "405":
-          description: "Storage item already known, cannot add again. Use update routine\
-            \ instead."
+        "404":
+          description: "405 Method Not Allowed - Adding of already existing item is\
+            \ not allowed, use update instead"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /hus/{id}:
     get:
       tags:
@@ -516,9 +586,18 @@ paths:
               schema:
                 type: string
         "404":
-          description: A HU with the specified ID was not found.
+          description: 404 - The specified resource was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       tags:
       - Handling Units
@@ -561,7 +640,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/MovementList'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /movements/confirm:
     put:
       tags:
@@ -663,9 +747,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Shipment'
         "404":
-          description: Shipment not found
+          description: 404 - The specified resource was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /orders/{status}:
     get:
       tags:
@@ -716,6 +809,25 @@ paths:
         "500":
           description: Unexpected error.
   /orders:
+    get:
+      tags:
+      - Orders
+      summary: Gets a list of all known orders
+      description: |
+        Returns the data records for the orders
+      operationId: getAllOrders
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderList'
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/OrderList'
+        "500":
+          description: Unexpected error.
     post:
       tags:
       - Orders
@@ -734,19 +846,28 @@ paths:
       responses:
         "201":
           description: Created - Order was added
-        "405":
-          description: "Storage item already known, cannot add again. Use update routine\
-            \ instead."
+        "404":
+          description: "405 Method Not Allowed - Adding of already existing item is\
+            \ not allowed, use update instead"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /orders/confirm:
     put:
       tags:
       - Orders
-      summary: Confirms an order as completed
+      summary: Confirms multiple orders as completed
       description: |
-        ERP/PPS/MES acknowledges that it received and processed the information that an order was completed or failed by the WMS. After the order is confirmed, it is removed completely from the order-list of the WMS. Only orders with status `COMPLETED` or `FAILED` may be confirmed.
-      operationId: confirmOrder
+        ERP/PPS/MES acknowledges that it received and processed the information that an order was completed or failed by the WMS. After the order is confirmed, it is removed completely from the order-list of the WMS. Only orders with status `COMPLETED` or `FAILED` may be confirmed. This operation can be used to confirm several orders at a time (batch confirm).
+      operationId: confirmOrders
       parameters:
       - name: orderno
         in: query
@@ -761,12 +882,66 @@ paths:
         "204":
           description: Successfully fulfilled - order deleted
         "404":
-          description: "Not found, orderno is not known or has been deleted already"
+          description: 404 - The specified resource was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "405":
-          description: "Invalid operation, only orders with state COMPLETED or FAILED\
-            \ my be updated."
+          description: "405 Method Not Allowed - Adding of already existing item is\
+            \ not allowed, use update instead"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orders/confirm/{orderno}:
+    put:
+      tags:
+      - Orders
+      summary: Confirms an order as completed
+      description: |
+        ERP/PPS/MES acknowledges that it received and processed the information that an order was completed or failed by the WMS. After the order is confirmed, it is removed completely from the order-list of the WMS. Only orders with status `COMPLETED` or `FAILED` may be confirmed. This operation is intended to confirm exactly one order.
+      operationId: confirmSingleOrder
+      parameters:
+      - name: orderno
+        in: path
+        description: Order-No of the order that is to be confirmed.
+        required: true
+        style: simple
+        explode: false
+        schema:
+          maxLength: 32
+          type: string
+      responses:
+        "204":
+          description: Successfully fulfilled - order deleted
+        "404":
+          description: 404 - The specified resource was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "405":
+          description: "405 Method Not Allowed - Adding of already existing item is\
+            \ not allowed, use update instead"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "500":
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /orders/{orderno}:
     delete:
       tags:
@@ -778,7 +953,7 @@ paths:
       parameters:
       - name: orderno
         in: path
-        description: order-no
+        description: Order-No of the order that is to be confirmed.
         required: true
         style: simple
         explode: false
@@ -860,7 +1035,7 @@ paths:
       parameters:
       - name: orderno
         in: path
-        description: order-no of the order-line.
+        description: Order-No of the order that is to be confirmed.
         required: true
         style: simple
         explode: false
@@ -957,9 +1132,25 @@ paths:
         "200":
           description: Success - article was updated
         "404":
-          description: Article not known. Use add new article instead.
+          description: 404 - The specified resource was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "405":
+          description: "405 Method Not Allowed - Adding of already existing item is\
+            \ not allowed, use update instead"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
       - Articles
@@ -980,10 +1171,19 @@ paths:
         "201":
           description: Created - article was added to article-master
         "405":
-          description: "Storage article already known, cannot add again. Use update\
-            \ routine instead."
+          description: "405 Method Not Allowed - Adding of already existing item is\
+            \ not allowed, use update instead"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /articles/{articleid}:
     get:
       tags:
@@ -1013,9 +1213,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Article'
         "404":
-          description: Article unknown.
+          description: 404 - The specified resource was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       tags:
       - Articles
@@ -1039,9 +1248,18 @@ paths:
         "202":
           description: Accepted - article was marked for deletion
         "404":
-          description: Article not known.
+          description: 404 - The specified resource was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         "500":
-          description: Unexpected error.
+          description: 500 Internal Server Error - This error indicates that the server
+            has encountered an unexpected condition.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /transports:
     get:
       tags:
@@ -1076,20 +1294,10 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  huTypes:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/HandlingUnitType'
+                $ref: '#/components/schemas/inline_response_200'
             application/xml:
               schema:
-                type: object
-                properties:
-                  huTypes:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/HandlingUnitType'
+                $ref: '#/components/schemas/inline_response_200'
         "500":
           description: Unexpected error.
   /uoms:
@@ -1106,20 +1314,10 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  huTypes:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/UnitOfMeasure'
+                $ref: '#/components/schemas/inline_response_200_1'
             application/xml:
               schema:
-                type: object
-                properties:
-                  huTypes:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/UnitOfMeasure'
+                $ref: '#/components/schemas/inline_response_200_1'
         "500":
           description: Unexpected error.
 components:
@@ -1422,13 +1620,7 @@ components:
           description: key-value pairs for additional information (needs to be defined
             in project)
           items:
-            type: object
-            properties:
-              code:
-                maxLength: 20
-                type: string
-              text:
-                type: string
+            $ref: '#/components/schemas/StorageItem_tags'
         additionalInfo:
           type: object
           additionalProperties: true
@@ -1648,14 +1840,7 @@ components:
             \ select items for retrieval, which value of itemparam1 is equal to ´\
             MYFILTERVALUE´"
           items:
-            type: object
-            properties:
-              key:
-                maxLength: 32
-                type: string
-              value:
-                maxLength: 255
-                type: string
+            $ref: '#/components/schemas/OrderLine_additionalProperties'
       description: Orderline with an order. Defines the  material/item/sku/article
         along with the requersted quantity and other properties.
     OrderList:
@@ -1955,3 +2140,166 @@ components:
           type: string
         message:
           type: string
+    inline_response_200:
+      type: object
+      properties:
+        huTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/HandlingUnitType'
+    inline_response_200_1:
+      type: object
+      properties:
+        huTypes:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnitOfMeasure'
+    StorageItem_tags:
+      type: object
+      properties:
+        code:
+          maxLength: 20
+          type: string
+        text:
+          type: string
+    OrderLine_additionalProperties:
+      type: object
+      properties:
+        key:
+          maxLength: 32
+          type: string
+        value:
+          maxLength: 255
+          type: string
+  responses:
+    NotFound:
+      description: 404 - The specified resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: 401 - Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidded:
+      description: 403 - Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    MethodNotAllowed:
+      description: "405 Method Not Allowed - Adding of already existing item is not\
+        \ allowed, use update instead"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: "400 - Bad request, the query contained invalid data."
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: "409 - Conflict, the required resource might have been changed\
+        \ in the meantime."
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: 500 Internal Server Error - This error indicates that the server
+        has encountered an unexpected condition.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotImplemented:
+      description: 501 Not implemented by the server
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  parameters:
+    storageItemIdParam:
+      name: id
+      in: path
+      description: Storage Item ID
+      required: true
+      style: simple
+      explode: false
+      schema:
+        maxLength: 32
+        type: string
+    huIdParam:
+      name: id
+      in: path
+      description: Handlung Unit ID
+      required: true
+      style: simple
+      explode: false
+      schema:
+        maxLength: 32
+        type: string
+    OrderNoParamQuery:
+      name: orderno
+      in: query
+      description: Order-No of the order that is to be confirmed.
+      required: true
+      style: form
+      explode: true
+      schema:
+        maxLength: 32
+        type: string
+    OrderNoParam:
+      name: orderno
+      in: path
+      description: Order-No of the order that is to be confirmed.
+      required: true
+      style: simple
+      explode: false
+      schema:
+        maxLength: 32
+        type: string
+    OrderLineParam:
+      name: orderlineno
+      in: path
+      description: order-line-no of the order-line.
+      required: true
+      style: simple
+      explode: false
+      schema:
+        maxLength: 32
+        type: string
+    orderStatusParam:
+      name: status
+      in: path
+      description: "status of orders, which should be returned. All orders will be\
+        \ returned, if status os omitted."
+      required: true
+      style: simple
+      explode: false
+      schema:
+        type: string
+        enum:
+        - NEW
+        - SELECTION
+        - RELEASE
+        - IDLE
+        - BUSY
+        - SUSPENDED
+        - WAITING
+        - COMPLETED
+        - FAILED
+        - CANCELLED
+        - ALL
+      examples:
+        all:
+          summary: all orders
+          value: ALL
+        completed:
+          summary: list only completed orders
+          value: ALL
