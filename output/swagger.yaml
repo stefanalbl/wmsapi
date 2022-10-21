@@ -2274,6 +2274,16 @@ components:
       schema:
         maxLength: 32
         type: string
+    ArticleIdParam:
+      name: articleid
+      in: path
+      description: article-ID of the article that should be returned
+      required: true
+      style: simple
+      explode: false
+      schema:
+        maxLength: 32
+        type: string
     orderStatusParam:
       name: status
       in: path
