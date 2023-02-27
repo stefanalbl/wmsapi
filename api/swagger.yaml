@@ -1,0 +1,2722 @@
+{
+  "openapi" : "3.0.0",
+  "info" : {
+    "title" : "WMS API",
+    "description" : "# General\nStandard API for interfacing of ERP/PPS/MES system with WMS of a fully automated high-bay warehouse.   The basic concept is that the WMS manages the internal data, events and actions inside the automatic high -bay warehouse.  The ERP/PPS/MES system manages the storage-items or HUs. (depending on the project context: pallets, packets, boxes, carriers, cradles,  tires, ...).   \n## There are 2 basic scenarios\n  - **simple HU/storage items** \n    Storage items and Handing Units have a 1:1 relation. Each HU consists of exactly one storage item.\n  - **complex (mixed) HUs** \n    One HU can contain one to several stroage items (e.g. different materials or batches).\n\nThis API supports both interfaces.\n# Usage examples:\n## Inbound with HU-announcement\n### Description:\nERP/PPS/MES manages storage units (or HUs) and sends the data for storage items or HUs to the WMS in advance. When a HU arrives at an inbound-station (ID station) and its barcode(s) is/are scanned, the WMS checks, if data for the scanned HU (including the storage-items) is available. If yes, the HU is stored, otherwise it is rejected to a NIO-station.\n\n  **Remark**\n\nIn the complex HU scenario, where a HU can consist of multiple items, the WMS checks, if the scanned barcodes match the expected content of the HU (as sent by ERP). This means:\n  - All barcodes of expected storage-items must be present (on the scanned HU)\n  - No unexpected barcodes are allowed on the HU\n\n### Process / Actions\n- ERP/PPS/MES POSTS data of new [Articles](#/Articles/addArticle) to ensure the WMS has the required master-data of new items.\n- ERP/PPS/MES POSTS data of each [Handling-Unit](#/Handling%20Units/addHandlingUnit) to inform the WMS out new Handling-Units.\n\n## Inbound with Storage-Item announcement\n### Description:\nERP/PPS/MES manages storage units  and leaves the management of storage-items up to the WMS(or others). Therefor ERP/PPS/MES sends the data for each [storage item](#/Storage%20Items/addStorageItem) to the WMS in advance.\nWhen a HU with one or multiple storage items arrives at an inbound-station (ID station) and its barcodes are scanned, the WMS checks, if data for each storage-ite  is available. If yes, the HU created and the storage items are assigned to the new HU. The HU is then stored. After storage the WMS creates a [movement-record](#/Movements/getMovements) If data was missing, the HU is rejected to a NIO-station (no movement is generated for that).\n\n   ### Process / Actions\n\n- ERP/PPS/MES POSTS data of new [Articles](#/Articles/addArticle) to ensure the WMS has the required master-data of new items.\n- ERP/PPS/MES POSTS data of [Storage Item](#/Storage%20Items/addStorageItem)  to inform the WMS out new storage Items.\n- The WMS stores the pallet and creates a movement-record Option: If the ERP/PPS/MES-system supports it's own API, the WMS can inform the ERP/PPS/MES about the movement by calling the respective API of the ERP/PPS/MES. - If ERP/PPS/MES does not support its own API, it can query the WMS for new [movements](#/Movements/getMovements). See chaper Movements\n## Movements ##\nFor each relevant movement, the WMS creates a [movements](#/Movement/getMovements) record that can be queried by the ERP/PPS/MES-system.\n  - The ERP/PPS/MES queries the list of all new movements.\n  - The ERP/PPS/MES processes each movement and calls the [/movements/confirm API method](#/Movements/confirmMovementByIDs) to acknowledge the movement for the WMS. The WMS removes the records from its list.\n- The ERP/PPS/MES queries the list of all new [movements](#/Movement/getMovements)  again, if no new movements have been completed in the meantime, an empty list is returned.\n\n  **Comment** \n  \n  Typically the movement list is queried by the ERP/PPS/MES every 30-60 seconds.\n  If movements need to be reported faster, the notification should be done by PUSHING the data through an API (provided by ERP/PPS/MES) call instead of polling.\n\n## Retrievals ##\n### Simple Orders ###\nThe ERP/PPS/MES system sends the orders for retrievals to the WMS by posting [orders](#/Orders/createOrder). The Orders contain the requested HUs or material, quantities or other properties. Each order-line can require one to several HUs to be retrieved. The WMS then selects the requested or matching Handling-Units and creates internal transport-orders to retrieve the HUs to their destination. For each HU that reaches the destination the WMS createsa a [movements](#/Movement/getMovements  record. If all required HUs for an [order-line](#/OrderLines/getOrderLines) are retrieved the status of the order-line is changed to `COMPLETED`. If all order-lines are completed the status of the [order](#/Orders/getOrders) is changed to `COMPLETED`\nIf one order-line fails, the status of the order is changed to `FAILED` after all other order-lines are either `COMPLETED` or `FAILED`. The ERP is then expceted to [confirm](#/Orders/confirmOrder) the coMPLETED ot FAILED order, so it can be removed from ther orders-list by the WMS.\n\n  **Remark**\nOrders are always started for execution immediately by the WMS, there is no action neccessary to start them.\n### Complex Shipments ###\nComplex shipments are colletions of orders that are grouped by the ERP/PPS/MES. The ERP/PPS/MES posts the shipment to the WMS. Shipments are **NOT** automatically started if the status is `NEW`.\nIf the shipment is ready to be retrieved the ERP/PPS/MES triggers the retrieval by updateing the status to `IDLE` (same as if the status was initially set to `IDLE`).\nThe rest of the process is the same as in simple orders.\nAlso a shipment fails, if one of its orders failed. If all completed sucessfuly, the shipment-status is set to `COMPLETED`.\n\n### Material master ###\nMaterial-master-data (article master data) should be provided by the ERP, by posting and updateing material-master data to the WMS. Depending on project requirements, the WMS can build the material-master data dynamically (only articleID - no other properties). This needs to be defined per project.\n",
+    "termsOfService" : "https://www.ltw.at/service",
+    "contact" : {
+      "name" : "LTW API-Support",
+      "url" : "https://www.ltw.at/service",
+      "email" : "stefan.albl@ltw.at"
+    },
+    "license" : {
+      "name" : "Apache 2.0",
+      "url" : "https://www.apache.org/licenses/LICENSE-2.0"
+    },
+    "version" : "1.0.0"
+  },
+  "servers" : [ {
+    "url" : "https://virtserver.swaggerhub.com/LTW/WMS/1.0.0",
+    "description" : "SwaggerHub API Auto Mocking"
+  }, {
+    "url" : "https://virtserver.swaggerhub.com/stefanalbl/WMS/1.0.0",
+    "description" : "SwaggerHub API Auto Mocking"
+  }, {
+    "url" : "{protocol}://{productionServer}/v1",
+    "description" : "LTW WMS server on site",
+    "variables" : {
+      "protocol" : {
+        "default" : "https",
+        "enum" : [ "http", "https" ]
+      },
+      "productionServer" : {
+        "description" : "DNS or IP of WMS server",
+        "default" : "localhost"
+      }
+    }
+  }, {
+    "url" : "{protocol}://{testServer}/v1",
+    "description" : "Optional test-server for interface test",
+    "variables" : {
+      "protocol" : {
+        "default" : "https",
+        "enum" : [ "http", "https" ]
+      },
+      "testServer" : {
+        "description" : "DNS or IP of WMS server for testing",
+        "default" : "localhost"
+      }
+    }
+  }, {
+    "url" : "{protocol}://{ERPserver}",
+    "description" : "ERP-Server which implements ERP-API",
+    "variables" : {
+      "protocol" : {
+        "default" : "https",
+        "enum" : [ "http", "https" ]
+      },
+      "ERPserver" : {
+        "description" : "DNS or IP of ERP/MES/PPS system",
+        "default" : "localhost"
+      }
+    }
+  } ],
+  "paths" : {
+    "/ping" : {
+      "get" : {
+        "tags" : [ "Connectivity" ],
+        "description" : "Connectivity test - to verify connectivity without triggering any actions.",
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        }
+      }
+    },
+    "/storageitems" : {
+      "get" : {
+        "tags" : [ "Storage Items" ],
+        "operationId" : "getStorageItems",
+        "parameters" : [ {
+          "name" : "created_date",
+          "in" : "query",
+          "required" : false,
+          "style" : "form",
+          "explode" : true,
+          "schema" : {
+            "type" : "string",
+            "description" : "Minimum creation date for items to return. Result will only contain records that have been created at or after `created_date`. [RFC3339 Section 5.6](https://www.rfc-editor.org/rfc/rfc3339#section-5.6)",
+            "format" : "date"
+          },
+          "examples" : {
+            "all" : {
+              "summary" : "empty (no parameter given) will return all items",
+              "value" : ""
+            },
+            "date" : {
+              "summary" : "Items that were created after christmas (24.12.2022)",
+              "value" : "2022-12-24"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StorageItemList"
+                },
+                "example" : [ {
+                  "itemId" : "SI111100001",
+                  "huId" : "HU3456789012345678",
+                  "articleId" : "TestArticle01",
+                  "batch" : "BATCH20221231",
+                  "qty" : 400,
+                  "UOM" : "kg",
+                  "productionDate" : "2022-01-01",
+                  "bestBeforeDate" : "2024-01-01",
+                  "abc" : "A",
+                  "qualityState" : "F"
+                }, {
+                  "itemId" : "SI111100002",
+                  "huId" : "HU3456789012345678",
+                  "articleId" : "TestArticle02",
+                  "batch" : "BATCH20231231",
+                  "qty" : 200,
+                  "UOM" : "kg",
+                  "productionDate" : "2023-01-01",
+                  "bestBeforeDate" : "2025-01-01",
+                  "abc" : "A",
+                  "qualityState" : "F"
+                }, {
+                  "itemId" : "SI111100002",
+                  "huId" : "HU0000000000000001",
+                  "articleId" : "TestArticle01",
+                  "batch" : "BATCH20221231",
+                  "qty" : 300,
+                  "UOM" : "kg",
+                  "productionDate" : "2022-01-01",
+                  "bestBeforeDate" : "2024-01-01",
+                  "abc" : "A",
+                  "qualityState" : "F",
+                  "itemparam2" : "Data of itemparam 2"
+                } ]
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StorageItemList"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "404 - The specified resource was not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "Storage Items" ],
+        "summary" : "updates and existing  storage item - used to inform WMS about data change of a storage item.",
+        "operationId" : "updateStorageItem",
+        "requestBody" : {
+          "description" : "Changed data of existing storage-item",
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StorageItem"
+              }
+            },
+            "application/xml" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StorageItem"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Success - item was updated"
+          },
+          "404" : {
+            "description" : "404 - The specified resource was not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Storage Items" ],
+        "summary" : "adds a new storage item - used to inform WMS about new storage items that are about to be stored in the future.",
+        "operationId" : "addStorageItem",
+        "requestBody" : {
+          "description" : "New storage item to add",
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StorageItem"
+              },
+              "examples" : {
+                "HU1_Item1of2" : {
+                  "value" : {
+                    "itemId" : "SI111100001",
+                    "huId" : "HU3456789012345678",
+                    "articleId" : "TestArticle01",
+                    "batch" : "BATCH20221231",
+                    "qty" : 400,
+                    "UOM" : "kg",
+                    "productionDate" : "2022-01-01",
+                    "bestBeforeDate" : "2024-01-01",
+                    "abc" : "A",
+                    "qualityState" : "F"
+                  }
+                },
+                "HU1_Item2of2" : {
+                  "value" : {
+                    "itemId" : "SI111100002",
+                    "huId" : "HU3456789012345678",
+                    "articleId" : "TestArticle02",
+                    "batch" : "BATCH20231231",
+                    "qty" : 200,
+                    "UOM" : "kg",
+                    "productionDate" : "2023-01-01",
+                    "bestBeforeDate" : "2025-01-01",
+                    "abc" : "A",
+                    "qualityState" : "F"
+                  }
+                },
+                "HU2_SingleItem" : {
+                  "value" : {
+                    "itemId" : "SI111100002",
+                    "huId" : "HU0000000000000001",
+                    "articleId" : "TestArticle01",
+                    "batch" : "BATCH20221231",
+                    "qty" : 300,
+                    "UOM" : "kg",
+                    "productionDate" : "2022-01-01",
+                    "bestBeforeDate" : "2024-01-01",
+                    "abc" : "A",
+                    "qualityState" : "F",
+                    "itemparam2" : "Data of itemparam 2"
+                  }
+                }
+              }
+            },
+            "application/xml" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StorageItem"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created - item was added",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StorageItem"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StorageItem"
+                }
+              }
+            }
+          },
+          "405" : {
+            "description" : "Storage item already known, cannot add again. Use update routine instead."
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      }
+    },
+    "/storageitems/{id}" : {
+      "get" : {
+        "tags" : [ "Storage Items" ],
+        "summary" : "Gets a storage item by ID.",
+        "description" : "Returns the data records for the requested storage Item\n",
+        "operationId" : "getStorageItemByID",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "description" : "Storage Item ID",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "maxLength" : 32,
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "StorageItem that was queried",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StorageItem"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StorageItem"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "404 - The specified resource was not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Storage Items" ],
+        "summary" : "deletes a storage item by ID.",
+        "description" : "Deletes a storage item, which is not intended to be stored anymore (cancellation).> If storage item is already stored, the request will fail.\n",
+        "operationId" : "deleteStorageItemByID",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "description" : "Storage Item ID",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "maxLength" : 32,
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Successfully fulfilled - item was deleted"
+          },
+          "404" : {
+            "description" : "404 - The specified resource was not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hus" : {
+      "get" : {
+        "tags" : [ "Handling Units" ],
+        "description" : "Gets a list of known Handling Units from the WMS. Result cen be filtered optionally by creation-date (e.g. only HUs created today)",
+        "operationId" : "getHandlingUnits",
+        "parameters" : [ {
+          "name" : "created_date",
+          "in" : "query",
+          "required" : false,
+          "style" : "form",
+          "explode" : true,
+          "schema" : {
+            "type" : "string",
+            "description" : "Minimum creation date for items to return. Result will only contain records that have been created at or after `created_date`. [RFC3339 Section 5.6](https://www.rfc-editor.org/rfc/rfc3339#section-5.6)",
+            "format" : "date"
+          },
+          "examples" : {
+            "all" : {
+              "summary" : "empty (no parameter given) will return all items",
+              "value" : ""
+            },
+            "date" : {
+              "summary" : "HUs that were created after christmas (24.12.2022)",
+              "value" : "2022-12-24"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HandlingUnitList"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HandlingUnitList"
+                }
+              },
+              "text/plain" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "404 - The specified resource was not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "Handling Units" ],
+        "summary" : "updates and existing handling unit- used to inform WMS about data change of a storage item.",
+        "operationId" : "updateHandlingUnit",
+        "requestBody" : {
+          "description" : "Changed data of existing handling-unit",
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HandlingUnit"
+              }
+            },
+            "application/xml" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HandlingUnit"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Success - HU was updated"
+          },
+          "404" : {
+            "description" : "404 - The specified resource was not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Handling Units" ],
+        "summary" : "adds a new HU - used to inform WMS about new HU that are about to be stored in the future.",
+        "operationId" : "addHandlingUnit",
+        "requestBody" : {
+          "description" : "New storage item to add",
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HandlingUnit"
+              },
+              "examples" : {
+                "HU1_with_2_Items" : {
+                  "value" : {
+                    "huId" : "HU3456789012345678",
+                    "huType" : "E1",
+                    "storageItems" : [ {
+                      "item1" : {
+                        "itemId" : "SI111100001",
+                        "articleId" : "TestArticle01",
+                        "batch" : "BATCH20221231",
+                        "qty" : 400,
+                        "UOM" : "kg",
+                        "productionDate" : "2022-01-01",
+                        "bestBeforeDate" : "2024-01-01",
+                        "abc" : "A",
+                        "qualityState" : "F"
+                      }
+                    }, {
+                      "item2" : {
+                        "itemId" : "SI111100002",
+                        "huId" : "HU3456789012345678",
+                        "articleId" : "TestArticle02",
+                        "batch" : "BATCH20231231",
+                        "qty" : 200,
+                        "UOM" : "kg",
+                        "productionDate" : "2023-01-01",
+                        "bestBeforeDate" : "2025-01-01",
+                        "abc" : "A",
+                        "qualityState" : "F"
+                      }
+                    } ]
+                  }
+                },
+                "HU2_with_1_Item" : {
+                  "value" : {
+                    "huId" : "HU0000000001",
+                    "huType" : "E2",
+                    "storageItems" : [ {
+                      "item1" : {
+                        "itemId" : "SI111100004",
+                        "articleId" : "TestArticle03",
+                        "batch" : "BATCH20241231",
+                        "qty" : 333,
+                        "UOM" : "kg",
+                        "productionDate" : "2022-01-01",
+                        "bestBeforeDate" : "2024-01-01",
+                        "abc" : "A",
+                        "qualityState" : "F"
+                      }
+                    } ]
+                  }
+                }
+              }
+            },
+            "application/xml" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HandlingUnit"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created - item was added",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StorageItem"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StorageItem"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "405 Method Not Allowed - Adding of already existing item is not allowed, use update instead",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hus/{id}" : {
+      "get" : {
+        "tags" : [ "Handling Units" ],
+        "summary" : "Gets a HU by ID.",
+        "description" : "Returns the data records for the requested storage Item\n",
+        "operationId" : "getHandlingUnitByID",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "description" : "Handlung Unit ID",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "maxLength" : 32,
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HandlingUnit"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HandlingUnit"
+                }
+              },
+              "text/plain" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "404 - The specified resource was not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Handling Units" ],
+        "summary" : "deletes a HU by ID.",
+        "description" : "Deletes a HU by ID, which is not intended to be stored anymore (cancellation).> If HU is already stored, the request will fail.\n",
+        "operationId" : "deleteHandlingUnitByID",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "description" : "HU ID",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "maxLength" : 32,
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Successfully fulfilled - HU was deleted"
+          },
+          "405" : {
+            "description" : "Not allowed tol delete item, which is already stored."
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      }
+    },
+    "/movements" : {
+      "get" : {
+        "tags" : [ "Movements" ],
+        "summary" : "Gets all unconfirmed movements",
+        "description" : "Returns the data records for the unconfirmed movements \n",
+        "operationId" : "getMovements",
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MovementList"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MovementList"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/movements/confirm" : {
+      "put" : {
+        "tags" : [ "Movements" ],
+        "summary" : "Updates (marks) movements as confirmed by ERP/PPS/MES",
+        "operationId" : "confirmMovementByIDs",
+        "parameters" : [ {
+          "name" : "ids",
+          "in" : "query",
+          "description" : "movement IDs as array (can be one to many IDs)",
+          "required" : true,
+          "style" : "form",
+          "explode" : true,
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int64"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Success"
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      }
+    },
+    "/movements/{minid}" : {
+      "get" : {
+        "tags" : [ "Movements" ],
+        "summary" : "Gets all movements with movementid >= minid",
+        "description" : "Returns the data records for movements with a movement-ID equal or greater than minID\n",
+        "operationId" : "getMovementsByID",
+        "parameters" : [ {
+          "name" : "minid",
+          "in" : "path",
+          "description" : "minimum movement ID",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MovementList"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MovementList"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      }
+    },
+    "/shipments" : {
+      "get" : {
+        "tags" : [ "Shipments" ],
+        "summary" : "Gets all shipments",
+        "description" : "Returns the data records for shipments \n",
+        "operationId" : "getShipments",
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ShipmentList"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ShipmentList"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      }
+    },
+    "/shipments/{id}" : {
+      "get" : {
+        "tags" : [ "Shipments" ],
+        "summary" : "Gets data of one shipment",
+        "description" : "Returns the data records for a specific shipment\n",
+        "operationId" : "getShipmentById",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "description" : "shipment ID",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Shipment"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Shipment"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "404 - The specified resource was not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{status}" : {
+      "get" : {
+        "tags" : [ "Orders" ],
+        "summary" : "Gets a list of all known orders",
+        "description" : "Returns the data records for the orders for the specified status (or all, if no status is filtered)\n",
+        "operationId" : "getOrders",
+        "parameters" : [ {
+          "name" : "status",
+          "in" : "path",
+          "description" : "status of orders, which should be returned. All orders will be returned, if status os omitted.",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "NEW", "SELECTION", "RELEASE", "IDLE", "BUSY", "SUSPENDED", "WAITING", "COMPLETED", "FAILED", "CANCELLED", "ALL" ]
+          },
+          "examples" : {
+            "all" : {
+              "summary" : "all orders",
+              "value" : "ALL"
+            },
+            "completed" : {
+              "summary" : "list only completed orders",
+              "value" : "ALL"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderList"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderList"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      }
+    },
+    "/orders" : {
+      "get" : {
+        "tags" : [ "Orders" ],
+        "summary" : "Gets a list of all known orders",
+        "description" : "Returns the data records for the orders\n",
+        "operationId" : "getAllOrders",
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderList"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderList"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Orders" ],
+        "summary" : "Sends an order to the WMS for execution",
+        "operationId" : "createOrder",
+        "requestBody" : {
+          "description" : "Order data that should be executed (retrieved)",
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Order"
+              }
+            },
+            "application/xml" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Order"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created - Order was added"
+          },
+          "404" : {
+            "description" : "405 Method Not Allowed - Adding of already existing item is not allowed, use update instead",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/confirm" : {
+      "put" : {
+        "tags" : [ "Orders" ],
+        "summary" : "Confirms multiple orders as completed",
+        "description" : "ERP/PPS/MES acknowledges that it received and processed the information that an order was completed or failed by the WMS. After the order is confirmed, it is removed completely from the order-list of the WMS. Only orders with status `COMPLETED` or `FAILED` may be confirmed. This operation can be used to confirm several orders at a time (batch confirm).\n",
+        "operationId" : "confirmOrders",
+        "parameters" : [ {
+          "name" : "orderno",
+          "in" : "query",
+          "description" : "Order-No of the order that is to be confirmed.",
+          "required" : true,
+          "style" : "form",
+          "explode" : true,
+          "schema" : {
+            "maxLength" : 32,
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Successfully fulfilled - order deleted"
+          },
+          "404" : {
+            "description" : "404 - The specified resource was not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405" : {
+            "description" : "405 Method Not Allowed - Adding of already existing item is not allowed, use update instead",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/confirm/{orderno}" : {
+      "put" : {
+        "tags" : [ "Orders" ],
+        "summary" : "Confirms an order as completed",
+        "description" : "ERP/PPS/MES acknowledges that it received and processed the information that an order was completed or failed by the WMS. After the order is confirmed, it is removed completely from the order-list of the WMS. Only orders with status `COMPLETED` or `FAILED` may be confirmed. This operation is intended to confirm exactly one order.\n",
+        "operationId" : "confirmSingleOrder",
+        "parameters" : [ {
+          "name" : "orderno",
+          "in" : "path",
+          "description" : "Order-No of the order that is to be confirmed.",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "maxLength" : 32,
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Successfully fulfilled - order deleted"
+          },
+          "404" : {
+            "description" : "404 - The specified resource was not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405" : {
+            "description" : "405 Method Not Allowed - Adding of already existing item is not allowed, use update instead",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{orderno}" : {
+      "delete" : {
+        "tags" : [ "Orders" ],
+        "summary" : "cancels a complete order",
+        "description" : "Cancel a complete order. Only allowed, if it has not been started by the WMS already. Cancelling an order will not delete the order, it will change its status to CANCELLED instead.  The resopnse 200-OK may not be used a positive confirmation of the cancellation. Iit is only the  confirmation of successfull receipt of the cancellation request. Cancellation might be a time-consuming process in the WMS. The ERP can query the result of the cancellation afterwards. If the cancellation becomes successfull, the status of the order and all order-lines changes to `CANCELLED´.\n",
+        "operationId" : "cancelOrder",
+        "parameters" : [ {
+          "name" : "orderno",
+          "in" : "path",
+          "description" : "Order-No of the order that is to be confirmed.",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "maxLength" : 32,
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Successfully fulfiled - order was cancelled"
+          },
+          "405" : {
+            "description" : "Not allowed - order might be busy already"
+          },
+          "404" : {
+            "description" : "Not found - order does not exist"
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      }
+    },
+    "/orders/orderlines/{orderno}" : {
+      "get" : {
+        "tags" : [ "OrderLines" ],
+        "summary" : "Gets a list of all order-lines for a specific order-no",
+        "description" : "Returns the data records for the order-lines for the requested order\n",
+        "operationId" : "getOrderLines",
+        "parameters" : [ {
+          "name" : "orderno",
+          "in" : "path",
+          "description" : "order-no of the order, which order-lines should be returned.",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "maxLength" : 32,
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderLineList"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderLineList"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      }
+    },
+    "/orders/orderlines" : {
+      "put" : {
+        "tags" : [ "OrderLines" ],
+        "summary" : "Updates one single orderline",
+        "description" : "If an order-lines needs to be changedby the ERP/MPPS/MES, it can send an update. The WMS will check, if the update is possible. If the status of the order-line is already BUSY, SUSPENDED, COMPLETED or FAILED, it cannot be changed anymore and the request will fail.\n",
+        "operationId" : "updateOrderLine",
+        "requestBody" : {
+          "description" : "Order-line data that needs to be updated",
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OrderLine"
+              }
+            },
+            "application/xml" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OrderLine"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Success - Order-Line as changed"
+          },
+          "405" : {
+            "description" : "Update not possible."
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      }
+    },
+    "/orders/{orderno}/oderlines/{orderlineno}" : {
+      "delete" : {
+        "tags" : [ "OrderLines" ],
+        "summary" : "cancels an individual order-line",
+        "description" : "Cancel an order-line. Only allowed, if it has not been started by the WMS already. Cancelling an order-line will not delete the order-line, it will change its status to CANCELLED instead. The ERP\n",
+        "operationId" : "cancelOrderLine",
+        "parameters" : [ {
+          "name" : "orderno",
+          "in" : "path",
+          "description" : "Order-No of the order that is to be confirmed.",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "maxLength" : 32,
+            "type" : "string"
+          }
+        }, {
+          "name" : "orderlineno",
+          "in" : "path",
+          "description" : "order-line-no of the order-line.",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "maxLength" : 32,
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Successfully fulfilled - line was cancelled"
+          },
+          "405" : {
+            "description" : "Not allowed - order-line might be busy already"
+          },
+          "404" : {
+            "description" : "Not found - order-line does not exist"
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      }
+    },
+    "/locations/{type}" : {
+      "get" : {
+        "tags" : [ "Locations" ],
+        "summary" : "Gets a list of all known locations filtered by type",
+        "description" : "Provides a list of known locations. Typically the ERP/PPS/MES will use locations of type `VIR` for interfacing with WMS. Details to be defined in each project.\n",
+        "operationId" : "getLocationsByType",
+        "parameters" : [ {
+          "name" : "type",
+          "in" : "path",
+          "description" : "Type of locations to be returned.",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "enum" : [ "VIR" ]
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LocationList"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LocationList"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      }
+    },
+    "/articles" : {
+      "get" : {
+        "tags" : [ "Articles" ],
+        "summary" : "Gets a list of all known articles",
+        "description" : "Provides a list of known articles by the WMS.\n",
+        "operationId" : "getArticles",
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ArticleList"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ArticleList"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "Articles" ],
+        "summary" : "updates and existing  article - used to inform WMS about data change of an article.",
+        "operationId" : "updateArticle",
+        "requestBody" : {
+          "description" : "Changed data of existing article",
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Article"
+              }
+            },
+            "application/xml" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Article"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Success - article was updated"
+          },
+          "404" : {
+            "description" : "404 - The specified resource was not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405" : {
+            "description" : "405 Method Not Allowed - Adding of already existing item is not allowed, use update instead",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Articles" ],
+        "summary" : "adds a new article to the material master of the WMS used to inform WMS about new articles.",
+        "operationId" : "addArticle",
+        "requestBody" : {
+          "description" : "New article to add",
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Article"
+              }
+            },
+            "application/xml" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Article"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "Created - article was added to article-master"
+          },
+          "405" : {
+            "description" : "405 Method Not Allowed - Adding of already existing item is not allowed, use update instead",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/articles/{articleid}" : {
+      "get" : {
+        "tags" : [ "Articles" ],
+        "summary" : "Gets data for a single article",
+        "description" : "Provides data of specific\n",
+        "operationId" : "getArticleById",
+        "parameters" : [ {
+          "name" : "articleid",
+          "in" : "path",
+          "description" : "article-ID of the article that should be returned",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "maxLength" : 32,
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Article"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Article"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "404 - The specified resource was not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "Articles" ],
+        "summary" : "deletes and existing  article - used to inform WMS that an article is not needed anymore.",
+        "description" : "The WMS will not immediately delete the article. It just marks the article for deletion. If all references to the article are gone, ot is deleted.",
+        "operationId" : "deleteArticleById",
+        "parameters" : [ {
+          "name" : "articleid",
+          "in" : "path",
+          "description" : "article-ID of the article that should be returned",
+          "required" : true,
+          "style" : "simple",
+          "explode" : false,
+          "schema" : {
+            "maxLength" : 32,
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "202" : {
+            "description" : "Accepted - article was marked for deletion"
+          },
+          "404" : {
+            "description" : "404 - The specified resource was not found",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transports" : {
+      "get" : {
+        "tags" : [ "Transports" ],
+        "summary" : "Gets a list of all known transports",
+        "description" : "Provides a list of transports of the WMS.\n",
+        "operationId" : "getTransports",
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransportList"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransportList"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      }
+    },
+    "/hutypes" : {
+      "get" : {
+        "tags" : [ "Master data" ],
+        "summary" : "Gets a list of all known HU-Types for this project",
+        "description" : "Provides a list of HU-types - result depends on project.\n",
+        "operationId" : "getHUTypes",
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/inline_response_200"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/inline_response_200"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      }
+    },
+    "/uoms" : {
+      "get" : {
+        "tags" : [ "Unit of measure" ],
+        "summary" : "Gets a list of all known units of measure",
+        "description" : "Provides a list of unit of measures -  result depends on project.\n",
+        "operationId" : "getUOMs",
+        "responses" : {
+          "200" : {
+            "description" : "Success",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/inline_response_200_1"
+                }
+              },
+              "application/xml" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/inline_response_200_1"
+                }
+              }
+            }
+          },
+          "500" : {
+            "description" : "Unexpected error."
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "Transport" : {
+        "required" : [ "currentLocation", "huId", "source", "status", "tono", "transportType" ],
+        "type" : "object",
+        "properties" : {
+          "tono" : {
+            "maximum" : 9999,
+            "minimum" : 0,
+            "type" : "integer",
+            "description" : "internal identifier of transport order within WMS, ToNo is within a range from 1-9999 and is reused constantly. Only unique during the lifetime of one transport.",
+            "format" : "int32"
+          },
+          "status" : {
+            "maxLength" : 10,
+            "type" : "string",
+            "description" : "Status of transport order",
+            "enum" : [ "CREATED", "CHANGED", "IDLE", "BUSY", "WAITING", "SUSPENDED", "COMPLETED", "FAILED" ]
+          },
+          "startDate" : {
+            "type" : "string",
+            "description" : "start time of transport (creation) in format RFC3339 Section 5.6",
+            "format" : "date-time",
+            "example" : "2022-12-24T17:01:59Z"
+          },
+          "transportType" : {
+            "maxLength" : 10,
+            "type" : "string",
+            "enum" : [ "IN", "OUT", "MOVE", "DEFRAG", "CENTER", "EJECT" ]
+          },
+          "huId" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "ID of Handling-Unit that is transported"
+          },
+          "source" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "source location of transport (start location) - must be a valid Location)"
+          },
+          "currentLocation" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "current location of transport (start location) - must be a valid Location)"
+          },
+          "nextLocation" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "next destination of transport (start location) - must be a valid Location)"
+          },
+          "destination" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "final destination of transport (start location) - must be a valid Location)"
+          }
+        },
+        "description" : "Entity which holds all data of a transport order for a single handling-unit from a source to its destination"
+      },
+      "TransportList" : {
+        "type" : "object",
+        "properties" : {
+          "transports" : {
+            "type" : "array",
+            "xml" : {
+              "name" : "transportarray",
+              "wrapped" : true
+            },
+            "items" : {
+              "$ref" : "#/components/schemas/Transport"
+            }
+          }
+        },
+        "description" : "List of Transports"
+      },
+      "HandlingUnitID" : {
+        "required" : [ "huId", "objectType" ],
+        "type" : "object",
+        "properties" : {
+          "objectType" : {
+            "type" : "string"
+          },
+          "huId" : {
+            "maxLength" : 32,
+            "type" : "string"
+          }
+        }
+      },
+      "HandlingUnitType" : {
+        "required" : [ "typeId" ],
+        "type" : "object",
+        "properties" : {
+          "typeId" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "description" : {
+            "maxLength" : 255,
+            "type" : "string"
+          },
+          "with" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "length" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "height" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "base" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "HandlingUnit" : {
+        "required" : [ "huId", "objectType" ],
+        "type" : "object",
+        "properties" : {
+          "huId" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "Unique identifier of handling unit (normally identical to barcode/RFID or some other identification)"
+          },
+          "huType" : {
+            "type" : "integer",
+            "description" : "type (class) of handling unit (depends on project) - must by a value from HandlingUnitTypes.",
+            "format" : "int32"
+          },
+          "location" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "Current location of handling unit (see Locations)"
+          },
+          "storageItems" : {
+            "type" : "array",
+            "description" : "Storage items that are on or in this Handling unit (normally one to many)",
+            "xml" : {
+              "name" : "storageitem"
+            },
+            "items" : {
+              "$ref" : "#/components/schemas/StorageItem"
+            }
+          },
+          "status" : {
+            "maxLength" : 10,
+            "type" : "string",
+            "description" : "Stauts of handling-unit",
+            "enum" : [ "OK", "BLOCKED", "RESERVED", "UNKNOWN" ]
+          }
+        },
+        "description" : "Handling-Units represent a containment for one or several storage-items. Handling units are just used to move inventory around. Handling units themself contain no inventory information (besides the location), but the are referended by storage items. If a handling-unit is moved, all its associated storage-items are moved alongside with it.\n"
+      },
+      "HandlingUnitList" : {
+        "minProperties" : 1,
+        "type" : "object",
+        "properties" : {
+          "units" : {
+            "type" : "array",
+            "items" : {
+              "oneOf" : [ {
+                "$ref" : "#/components/schemas/HandlingUnit"
+              }, {
+                "$ref" : "#/components/schemas/HandlingUnitID"
+              } ]
+            }
+          }
+        },
+        "description" : "List of Handling units"
+      },
+      "UnitOfMeasure" : {
+        "required" : [ "uomId" ],
+        "type" : "object",
+        "properties" : {
+          "uomId" : {
+            "maxLength" : 10,
+            "type" : "string",
+            "description" : "key value for a unit of measure, can be code or ID",
+            "enum" : [ "PC", "kg", "m", "m²", "m³", "CTN", "box", "tire" ]
+          },
+          "uomName" : {
+            "maxLength" : 255,
+            "type" : "string",
+            "description" : "Name for the unit of measure"
+          }
+        }
+      },
+      "StorageItem" : {
+        "required" : [ "articleID", "batch", "huId", "itemId", "qty", "uom" ],
+        "type" : "object",
+        "properties" : {
+          "itemId" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "unique ID of storage item. For non-mixed pallets itemId might be identical to huId."
+          },
+          "huId" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "HU-ID of the handling unit, where the storage-item is on.",
+            "nullable" : true
+          },
+          "articleId" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "article/material/SKU/item-no of the storage-item."
+          },
+          "batch" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "batch or lot (German `Charge`)"
+          },
+          "qty" : {
+            "type" : "number",
+            "description" : "Quantity of article for this storage-item",
+            "format" : "double"
+          },
+          "uom" : {
+            "maxLength" : 10,
+            "type" : "string",
+            "description" : "Unit of measure for quantity",
+            "enum" : [ "PC", "kg", "m", "m²", "m³", "CTN", "box", "tire" ]
+          },
+          "productionDate" : {
+            "type" : "string",
+            "description" : "productionDate in format [RFC3339 Section 5.6](https://www.rfc-editor.org/rfc/rfc3339#section-5.6)",
+            "format" : "date-time",
+            "example" : "2022-12-24T17:01:59Z"
+          },
+          "bestBeforeDate" : {
+            "type" : "string",
+            "description" : "best before date (expiry date) in format [RFC3339 Section 5.6](https://www.rfc-editor.org/rfc/rfc3339#section-5.6)",
+            "format" : "date",
+            "example" : "2022-12-24"
+          },
+          "abc" : {
+            "maxLength" : 3,
+            "type" : "string",
+            "description" : "turnover rate code, A=fastmover, B=normal, C=slowmover",
+            "enum" : [ "A", "B", "C" ]
+          },
+          "qualityState" : {
+            "maxLength" : 3,
+            "type" : "string",
+            "description" : "Quality state of storage item, might be free, quarantine, blocked",
+            "enum" : [ "F", "Q", "B" ]
+          },
+          "itemParam1" : {
+            "maxLength" : 255,
+            "type" : "string",
+            "description" : "additional text property of a storage item (to be defined in project)"
+          },
+          "itemParam2" : {
+            "maxLength" : 255,
+            "type" : "string",
+            "description" : "additional text property of a storage item (to be defined in project)"
+          },
+          "itemParam3" : {
+            "maxLength" : 255,
+            "type" : "string",
+            "description" : "additional text property of a storeage item (to be defined in project)"
+          },
+          "itemParam1i" : {
+            "maxLength" : 255,
+            "type" : "string",
+            "description" : "additional integer property of a storeage item (to be defined in project)"
+          },
+          "itemParam2i" : {
+            "maxLength" : 255,
+            "type" : "string",
+            "description" : "additional integer property of a storeage item (to be defined in project)"
+          },
+          "itemParam3i" : {
+            "maxLength" : 255,
+            "type" : "string",
+            "description" : "additional integer property of a storeage item (to be defined in project)"
+          },
+          "tags" : {
+            "type" : "array",
+            "description" : "key-value pairs for additional information (needs to be defined in project)",
+            "items" : {
+              "$ref" : "#/components/schemas/StorageItem_tags"
+            }
+          },
+          "additionalInfo" : {
+            "type" : "object",
+            "additionalProperties" : true,
+            "description" : "generic field for additional data - needs to be defined in project"
+          }
+        },
+        "description" : "A storage item is the entity representing a certain quantity of the same material with identical properties on the same physical carrier (e.g. pallet). Depending on the basic scenario (simpe or mixed HU) a storage items represents the content of a HU (pallet, box, ...) or a part of the content of a HU. In the simple scenario there is exaclty one storage item per HU, so the Storage Item represents the 'goods' on the HU.  The HU is just a shallow carrier that is used to move goods throughout the system. Each storage item is uniquely identified by its `itemID`. In the simple HU (non-mixed), typically itemId and huId are identical.\n"
+      },
+      "StorageItemList" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "xml" : {
+              "name" : "itemarray",
+              "wrapped" : true
+            },
+            "items" : {
+              "$ref" : "#/components/schemas/StorageItem"
+            }
+          }
+        },
+        "description" : "List of storage items"
+      },
+      "Shipment" : {
+        "required" : [ "orders", "shipmentID", "status" ],
+        "type" : "object",
+        "properties" : {
+          "shipmentID" : {
+            "type" : "integer",
+            "description" : "Unique number of shipment",
+            "format" : "int64"
+          },
+          "deliveryDate" : {
+            "type" : "string",
+            "description" : "Planned delivery date",
+            "format" : "date"
+          },
+          "sequence" : {
+            "type" : "integer",
+            "description" : "Sequence of the delivery (if deliveries need to be released in sequence, otherwise empty,)",
+            "format" : "int64"
+          },
+          "priority" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "status" : {
+            "maxLength" : 10,
+            "type" : "string",
+            "description" : "Status of the shipment (might be a summary of status of orders and order-lines). Initial status = `NEW`",
+            "enum" : [ "NEW", "IDLE", "START", "SELECTION", "RELEASE", "BUSY", "SUSPENDED", "COMPLETED", "FAILED", "CANCELLED" ]
+          },
+          "orders" : {
+            "maxItems" : 1000,
+            "minItems" : 1,
+            "type" : "array",
+            "description" : "A shipment must contain at least one order and up to a maximum of 1000 orders per shipment.",
+            "xml" : {
+              "name" : "order"
+            },
+            "items" : {
+              "$ref" : "#/components/schemas/Order"
+            }
+          },
+          "destination" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "Destination where the HUs for the shipment should be moved to (e.g outbound-lane or truck-dock or production line). Optional and might be overwritten by value in Order or OrderLine",
+            "nullable" : true
+          }
+        },
+        "description" : "Defines on shipment (e.g one truck-load) and contains one to several orders."
+      },
+      "ShipmentList" : {
+        "type" : "object",
+        "properties" : {
+          "shipments" : {
+            "type" : "array",
+            "xml" : {
+              "name" : "shipmentarray",
+              "wrapped" : true
+            },
+            "items" : {
+              "$ref" : "#/components/schemas/Shipment"
+            }
+          }
+        },
+        "description" : "List of shipments"
+      },
+      "Order" : {
+        "type" : "object",
+        "properties" : {
+          "orderNo" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "Order-No of ERP/PPS/MES system"
+          },
+          "orderType" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "Type of order (e.g. sales, delivery, production) - needs to be defined in project."
+          },
+          "sequence" : {
+            "type" : "integer",
+            "description" : "Sequence of the order in which it should be retrieved within the shipment.",
+            "format" : "int64"
+          },
+          "shipmentID" : {
+            "type" : "integer",
+            "description" : "reference to shipment, if the order is part of a shipment.",
+            "format" : "int64"
+          },
+          "status" : {
+            "maxLength" : 10,
+            "type" : "string",
+            "description" : "status of order. Initially always `NEW`",
+            "enum" : [ "NEW", "SELECTION", "RELEASE", "IDLE", "BUSY", "SUSPENDED", "WAITING", "COMPLETED", "FAILED", "CANCELLED" ]
+          },
+          "destination" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "Destination where the HUs of this order should be transported to. If set, it overwrites the value from the shipment.",
+            "nullable" : true
+          },
+          "lines" : {
+            "maxItems" : 10000,
+            "minItems" : 1,
+            "type" : "array",
+            "description" : "Individual order-lines of this order.",
+            "xml" : {
+              "name" : "lines"
+            },
+            "items" : {
+              "$ref" : "#/components/schemas/OrderLine"
+            }
+          }
+        },
+        "description" : "Repesents an order by the ERP/PPS/MES-system. Might be a sales order or production order or a delivery note. Contains from to max. 10.000 orderlines.\n"
+      },
+      "OrderLine" : {
+        "type" : "object",
+        "properties" : {
+          "orderLineNo" : {
+            "maximum" : 999999999999,
+            "minimum" : 1,
+            "type" : "integer",
+            "description" : "line indentifier within order - from ERP/PPS/MES system's order.",
+            "format" : "int64"
+          },
+          "sequence" : {
+            "maximum" : 9999,
+            "minimum" : 1,
+            "type" : "integer",
+            "description" : "Sequence of the orderline in which it should be retrieved within the order.",
+            "format" : "int32"
+          },
+          "status" : {
+            "maxLength" : 10,
+            "type" : "string",
+            "description" : "Status of the order-line",
+            "enum" : [ "NEW", "SELECTION", "RELEASE", "IDLE", "BUSY", "SUSPENDED", "WAITING", "COMPLETED", "FAILED", "CANCELLED" ]
+          },
+          "huID" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "HU-ID of the HU that is relatted to the orderline. Optional - not used, for requests by article and qty.\n"
+          },
+          "articleID" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "Article that is requested for this order-line. Might be empty, if the huId is set and the order-line requests a specfic HU instead of article. **Otherwise mandatory**\n"
+          },
+          "batch" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "If orderline requests only storage items of a specific lot/batch. Empty of WMS can select any batch."
+          },
+          "requestQty" : {
+            "type" : "number",
+            "description" : "Requested quantity by the ERP/PPS/MES system.",
+            "format" : "double"
+          },
+          "reservedQty" : {
+            "type" : "number",
+            "description" : "Empty for a request. The WMS set the quantity that it was able to reserve for this order-line. The reserved quantity might differ from the requestQty.",
+            "format" : "double",
+            "nullable" : true,
+            "readOnly" : true
+          },
+          "deliveredQty" : {
+            "type" : "number",
+            "description" : "Empty for a request. The WMS set the quantity that it was able to retriebe for this order-line. The retrieved quantity might differ from the requestQty and reservedQty.",
+            "format" : "double",
+            "nullable" : true,
+            "readOnly" : true
+          },
+          "destination" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "Destination where the HUs of this order.line should be transported to. If set, it overwrites the value from the shipment and order.",
+            "nullable" : true
+          },
+          "additionalProperties" : {
+            "type" : "array",
+            "description" : "key-value pairs for additional filtering criterias (property of Storage Item and value). E.g. itemparam1=MYFILTERVALUE will only select items for retrieval, which value of itemparam1 is equal to ´MYFILTERVALUE´",
+            "items" : {
+              "$ref" : "#/components/schemas/OrderLine_additionalProperties"
+            }
+          }
+        },
+        "description" : "Orderline with an order. Defines the  material/item/sku/article along with the requersted quantity and other properties."
+      },
+      "OrderList" : {
+        "type" : "object",
+        "properties" : {
+          "orders" : {
+            "type" : "array",
+            "xml" : {
+              "name" : "orderarray",
+              "wrapped" : true
+            },
+            "items" : {
+              "$ref" : "#/components/schemas/Order"
+            }
+          }
+        },
+        "description" : "List of Orders"
+      },
+      "OrderLineList" : {
+        "type" : "object",
+        "properties" : {
+          "lines" : {
+            "type" : "array",
+            "xml" : {
+              "name" : "orderlinearray",
+              "wrapped" : true
+            },
+            "items" : {
+              "$ref" : "#/components/schemas/OrderLine"
+            }
+          }
+        },
+        "description" : "List of Order-Lines"
+      },
+      "Location" : {
+        "required" : [ "locationId", "type" ],
+        "type" : "object",
+        "properties" : {
+          "locationId" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "unique ID for location",
+            "nullable" : false,
+            "example" : "HRL"
+          },
+          "name" : {
+            "maxLength" : 255,
+            "type" : "string",
+            "description" : "name of location (descriptive)",
+            "nullable" : true,
+            "example" : "General area for High-Bay"
+          },
+          "type" : {
+            "maxLength" : 3,
+            "type" : "string",
+            "description" : "Location type, must be one of following ...",
+            "example" : "VIR",
+            "default" : "VIR",
+            "enum" : [ "HBS", "CVS", "STC", "VIR", "AGV", "CMA" ]
+          }
+        },
+        "description" : "Location data for locations used by both systems (WMS and ERP/PPS/MES)."
+      },
+      "LocationList" : {
+        "type" : "object",
+        "properties" : {
+          "locations" : {
+            "type" : "array",
+            "xml" : {
+              "name" : "locationarray",
+              "wrapped" : true
+            },
+            "items" : {
+              "oneOf" : [ {
+                "$ref" : "#/components/schemas/Location"
+              }, {
+                "$ref" : "#/components/schemas/StorageLocation"
+              }, {
+                "$ref" : "#/components/schemas/ConveyorLocation"
+              }, {
+                "$ref" : "#/components/schemas/CraneLocation"
+              }, {
+                "$ref" : "#/components/schemas/EquipmentLocation"
+              } ]
+            }
+          }
+        },
+        "description" : "List of Locations"
+      },
+      "StorageLocation" : {
+        "allOf" : [ {
+          "$ref" : "#/components/schemas/Location"
+        }, {
+          "required" : [ "LType", "R", "X", "Y", "Z" ],
+          "type" : "object",
+          "properties" : {
+            "R" : {
+              "type" : "integer",
+              "description" : "Rack number of location (1-n)",
+              "format" : "int32"
+            },
+            "X" : {
+              "type" : "integer",
+              "description" : "X-coordinate (column) of location (1-n)",
+              "format" : "int32"
+            },
+            "Y" : {
+              "type" : "integer",
+              "description" : "Y-coordinate (level) of location (1-n)",
+              "format" : "int32"
+            },
+            "Z" : {
+              "type" : "integer",
+              "description" : "Z-coordinate (fork extension) of location (1-n)",
+              "format" : "int32"
+            },
+            "Pix" : {
+              "type" : "integer",
+              "description" : "place within compartment",
+              "format" : "int32"
+            },
+            "LType" : {
+              "type" : "integer",
+              "description" : "type of size of location",
+              "format" : "int32"
+            }
+          },
+          "description" : "specific rack locations inside high-bays"
+        } ]
+      },
+      "ConveyorLocation" : {
+        "required" : [ "Area", "Main", "Sub" ],
+        "type" : "object",
+        "properties" : {
+          "Area" : {
+            "type" : "integer",
+            "description" : "Conveyor Area number",
+            "format" : "int32"
+          },
+          "Main" : {
+            "type" : "integer",
+            "description" : "Conveyor main number",
+            "format" : "int32"
+          },
+          "Sub" : {
+            "type" : "integer",
+            "description" : "Conveyor sub-number",
+            "format" : "int32"
+          }
+        },
+        "description" : "Conveyor location data"
+      },
+      "CraneLocation" : {
+        "type" : "object",
+        "properties" : {
+          "craneNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "description" : "Crane location"
+      },
+      "EquipmentLocation" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "description" : "Future use"
+      },
+      "Article" : {
+        "required" : [ "id" ],
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "unique ID of material/article/item-no/SKU"
+          },
+          "name" : {
+            "maxLength" : 60,
+            "type" : "string",
+            "description" : "Short name of article"
+          },
+          "description" : {
+            "maxLength" : 255,
+            "type" : "string",
+            "description" : "detailed article text"
+          },
+          "group" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "Article group - used to group several article with similar properties togehter (e.g. for same storage area or strategies.)",
+            "default" : ""
+          },
+          "type" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "Article type - used to group several article with similar properties togehter (e.g. for same storage area or strategies.)",
+            "default" : ""
+          },
+          "stdQty" : {
+            "type" : "integer",
+            "description" : "Standard qty per storage item (eg. full pallet qty), 0=not used",
+            "format" : "int32",
+            "default" : 0
+          },
+          "weight" : {
+            "type" : "integer",
+            "description" : "Weight in g(rams), 0 for uknown",
+            "format" : "int32",
+            "default" : 0
+          },
+          "lastUpdate" : {
+            "type" : "string",
+            "description" : "timestamp of last update in format [RFC3339 Section 5.6](https://www.rfc-editor.org/rfc/rfc3339#section-5.6)",
+            "format" : "date-time",
+            "nullable" : true,
+            "readOnly" : true
+          }
+        },
+        "description" : "Material-master data for different kind ofer materials,articles, SKU, item-no, item-code."
+      },
+      "ArticleList" : {
+        "type" : "object",
+        "properties" : {
+          "articles" : {
+            "type" : "array",
+            "xml" : {
+              "name" : "articlearray",
+              "wrapped" : true
+            },
+            "items" : {
+              "$ref" : "#/components/schemas/Article"
+            }
+          }
+        },
+        "description" : "List of Articles"
+      },
+      "Movement" : {
+        "required" : [ "destinationID", "handlingUnitID", "id", "movement_type", "sourceID", "status", "timestamp" ],
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "integer",
+            "description" : "unique ID of movement",
+            "format" : "int64"
+          },
+          "timestamp" : {
+            "type" : "string",
+            "description" : "timestamp of movement in format [RFC3339 Section 5.6](https://www.rfc-editor.org/rfc/rfc3339#section-5.6)",
+            "format" : "date-time"
+          },
+          "sourceID" : {
+            "$ref" : "#/components/schemas/Location"
+          },
+          "destinationID" : {
+            "$ref" : "#/components/schemas/Location"
+          },
+          "handlingUnitID" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "ID of handling unit that was moved",
+            "nullable" : false
+          },
+          "handlingUnit" : {
+            "$ref" : "#/components/schemas/HandlingUnit"
+          },
+          "movement_type" : {
+            "maxLength" : 3,
+            "type" : "string",
+            "description" : "Movement type, one of the following: IN: Inbound, OUT: Outbound, MOV: general move or internal move, DEL: deletion of pallet, EX: external move, OTH: other move \n",
+            "enum" : [ "IN", "OUT", "MOV", "DEL", "EX", "OTH" ]
+          },
+          "status" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "Status of the movement on interface level:\n  - NEW: movement record has been created by WMS and is ready to be imported (read) by ER/PPS/MES.\n  - CONFIRMED: movement has been successfully imported by ERP/PPS/MES and is to be removed from the MovementList.\n",
+            "enum" : [ "NEW", "CONFIRMED" ]
+          },
+          "shipmentId" : {
+            "type" : "integer",
+            "description" : "reference to shipment, if the movement is related to a shipment, otherwise empty",
+            "format" : "int64",
+            "nullable" : true,
+            "readOnly" : true
+          },
+          "orderNo" : {
+            "maxLength" : 32,
+            "type" : "string",
+            "description" : "reference to order, if the movement is related to an order, otherwise empty",
+            "nullable" : true,
+            "readOnly" : true
+          },
+          "orderLineNo" : {
+            "type" : "integer",
+            "description" : "reference to order-line, if the movement is related to an order, otherwise empty",
+            "format" : "int64",
+            "nullable" : true,
+            "readOnly" : true
+          }
+        },
+        "description" : "Defines a movement of a specific handling unit from one location to another. Used to identify a partner-system (e.g. ERG/PPS/MES), that a HU has been moved."
+      },
+      "MovementList" : {
+        "type" : "object",
+        "properties" : {
+          "movements" : {
+            "type" : "array",
+            "xml" : {
+              "name" : "movementarray",
+              "wrapped" : true
+            },
+            "items" : {
+              "$ref" : "#/components/schemas/Movement"
+            }
+          }
+        },
+        "description" : "List of Movements"
+      },
+      "Error" : {
+        "required" : [ "code", "message" ],
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string"
+          }
+        }
+      },
+      "inline_response_200" : {
+        "type" : "object",
+        "properties" : {
+          "huTypes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/HandlingUnitType"
+            }
+          }
+        }
+      },
+      "inline_response_200_1" : {
+        "type" : "object",
+        "properties" : {
+          "huTypes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/UnitOfMeasure"
+            }
+          }
+        }
+      },
+      "StorageItem_tags" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "maxLength" : 20,
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        }
+      },
+      "OrderLine_additionalProperties" : {
+        "type" : "object",
+        "properties" : {
+          "key" : {
+            "maxLength" : 32,
+            "type" : "string"
+          },
+          "value" : {
+            "maxLength" : 255,
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "responses" : {
+      "NotFound" : {
+        "description" : "404 - The specified resource was not found",
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized" : {
+        "description" : "401 - Unauthorized",
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Forbidded" : {
+        "description" : "403 - Forbidden",
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "MethodNotAllowed" : {
+        "description" : "405 Method Not Allowed - Adding of already existing item is not allowed, use update instead",
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "BadRequest" : {
+        "description" : "400 - Bad request, the query contained invalid data.",
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Conflict" : {
+        "description" : "409 - Conflict, the required resource might have been changed in the meantime.",
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "InternalServerError" : {
+        "description" : "500 Internal Server Error - This error indicates that the server has encountered an unexpected condition.",
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotImplemented" : {
+        "description" : "501 Not implemented by the server",
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "parameters" : {
+      "storageItemIdParam" : {
+        "name" : "id",
+        "in" : "path",
+        "description" : "Storage Item ID",
+        "required" : true,
+        "style" : "simple",
+        "explode" : false,
+        "schema" : {
+          "maxLength" : 32,
+          "type" : "string"
+        }
+      },
+      "huIdParam" : {
+        "name" : "id",
+        "in" : "path",
+        "description" : "Handlung Unit ID",
+        "required" : true,
+        "style" : "simple",
+        "explode" : false,
+        "schema" : {
+          "maxLength" : 32,
+          "type" : "string"
+        }
+      },
+      "OrderNoParamQuery" : {
+        "name" : "orderno",
+        "in" : "query",
+        "description" : "Order-No of the order that is to be confirmed.",
+        "required" : true,
+        "style" : "form",
+        "explode" : true,
+        "schema" : {
+          "maxLength" : 32,
+          "type" : "string"
+        }
+      },
+      "OrderNoParam" : {
+        "name" : "orderno",
+        "in" : "path",
+        "description" : "Order-No of the order that is to be confirmed.",
+        "required" : true,
+        "style" : "simple",
+        "explode" : false,
+        "schema" : {
+          "maxLength" : 32,
+          "type" : "string"
+        }
+      },
+      "OrderLineParam" : {
+        "name" : "orderlineno",
+        "in" : "path",
+        "description" : "order-line-no of the order-line.",
+        "required" : true,
+        "style" : "simple",
+        "explode" : false,
+        "schema" : {
+          "maxLength" : 32,
+          "type" : "string"
+        }
+      },
+      "ArticleIdParam" : {
+        "name" : "articleid",
+        "in" : "path",
+        "description" : "article-ID of the article that should be returned",
+        "required" : true,
+        "style" : "simple",
+        "explode" : false,
+        "schema" : {
+          "maxLength" : 32,
+          "type" : "string"
+        }
+      },
+      "orderStatusParam" : {
+        "name" : "status",
+        "in" : "path",
+        "description" : "status of orders, which should be returned. All orders will be returned, if status os omitted.",
+        "required" : true,
+        "style" : "simple",
+        "explode" : false,
+        "schema" : {
+          "type" : "string",
+          "enum" : [ "NEW", "SELECTION", "RELEASE", "IDLE", "BUSY", "SUSPENDED", "WAITING", "COMPLETED", "FAILED", "CANCELLED", "ALL" ]
+        },
+        "examples" : {
+          "all" : {
+            "summary" : "all orders",
+            "value" : "ALL"
+          },
+          "completed" : {
+            "summary" : "list only completed orders",
+            "value" : "ALL"
+          }
+        }
+      }
+    }
+  }
+}
